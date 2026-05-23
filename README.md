@@ -1,39 +1,23 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="cursor-api-adapter" width="120" />
+
 # cursor-api-adapter
 
-Pythonic client for Cursor's `cursor-agent` CLI.
+**Pythonic client for Cursor's `cursor-agent` CLI.**
+Composer 2.5, GPT-5.5, Claude Opus 4.7, Gemini 3.1, Kimi K2.5, Grok 4.3 — all callable from Python.
 
-## What it is
+[![PyPI](https://img.shields.io/pypi/v/cursor-api-adapter.svg?style=flat-square&color=3b82f6)](https://pypi.org/project/cursor-api-adapter/)
+[![Python](https://img.shields.io/pypi/pyversions/cursor-api-adapter.svg?style=flat-square&color=3b82f6)](https://pypi.org/project/cursor-api-adapter/)
+[![License](https://img.shields.io/badge/license-MIT-3b82f6.svg?style=flat-square)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/bunasQ/cursor-api-adapter/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/bunasQ/cursor-api-adapter/actions/workflows/ci.yml)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg?style=flat-square)](#status)
 
-`cursor-api-adapter` wraps the official `cursor-agent` binary as a Python library. It gives you a small, synchronous `CursorAgentClient` that mints and resumes server-side sessions, parses Cursor's `stream-json` output into typed dataclasses, and exposes a drop-in `mini-swe-agent` model adapter.
+</div>
 
-## Why it exists
+---
 
-Cursor doesn't ship a public HTTP API. The `cursor-agent` CLI is the only programmatic surface for talking to Cursor's hosted models (`composer-2.5`, `gpt-5.5-high`, `claude-opus-4-7-medium`, `gemini-3.1-pro`, `kimi-k2.5`, ...). This library wraps the subprocess + stream-json plumbing so you don't have to.
-
-## Status
-
-Alpha (`0.x`). API may change.
-
-## Install
-
-```bash
-pip install cursor-api-adapter
-
-# With the mini-swe-agent adapter:
-pip install "cursor-api-adapter[minisweagent]"
-
-# Development:
-pip install "cursor-api-adapter[dev]"
-```
-
-## Prerequisites
-
-- `cursor-agent` on `$PATH` (or pass `cli_path=`). See [Cursor's CLI install docs](https://docs.cursor.com/cli).
-- `CURSOR_API_KEY` exported in your environment.
-
-Verify with `CursorAgentClient.healthcheck()` — it checks the binary, the env var, and runs `cursor-agent --version`.
-
-## Quickstart
+## Quick start
 
 ```python
 from cursor_api_adapter import CursorAgentClient
@@ -45,19 +29,61 @@ print(client.chat("Write a haiku about subprocess.run.").text)
 print(client.chat("Now translate it to French.").text)  # auto-resumes
 ```
 
-The first `chat()` mints a server-side session. Every subsequent `chat()` resumes it, so Cursor keeps the conversation context (and caches prompts) on its side.
+The first `chat()` mints a server-side session. Every subsequent call resumes it, so Cursor keeps the conversation context (and caches prompts) on its side — second-call input cost drops by an order of magnitude.
 
-## Authentication
+## Why this exists
 
-Cursor reads `CURSOR_API_KEY` from the environment. The adapter never reads it — it just verifies presence at `healthcheck()` time and lets `cursor-agent` handle the rest.
+Cursor doesn't ship a public HTTP API. The `cursor-agent` CLI is the only programmatic surface for talking to Cursor's hosted models. This library wraps the subprocess + `stream-json` plumbing so you don't have to think about pipes, session resume, or multimodal file handoffs.
+
+## Install
 
 ```bash
-export CURSOR_API_KEY="sk-..."
+pip install cursor-api-adapter
+
+# with the mini-swe-agent adapter
+pip install "cursor-api-adapter[minisweagent]"
+
+# for development
+pip install "cursor-api-adapter[dev]"
 ```
 
-## Available models
+**Zero runtime dependencies** in the core library — pure standard library.
 
-Use any model name `cursor-agent` accepts. Run `cursor-agent --print --model help` to see the full list. Pass it as the `model=` constructor argument or per-call via `chat(prompt, model=...)`.
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Python 3.10+ | uses `X \| None`, `match`, `dataclass(slots=True)` |
+| `cursor-agent` binary on `$PATH` | [install docs](https://docs.cursor.com/cli) |
+| `CURSOR_API_KEY` env var | the adapter never reads it — `cursor-agent` does |
+
+Verify everything is wired up with one call:
+
+```python
+CursorAgentClient().healthcheck()  # raises a typed error if anything's off
+```
+
+## Models
+
+Any model the CLI accepts. Run `cursor-agent --print --model help` while authed to see the full roster. Notable picks:
+
+| Model | Provider | Notes |
+|---|---|---|
+| `composer-2.5` | Cursor | their flagship coding model (May 2026) |
+| `composer-2.5-fast` | Cursor | faster, slightly cheaper |
+| `claude-opus-4-7-high` | Anthropic | via Cursor's gateway |
+| `gpt-5.5-high` | OpenAI | via Cursor's gateway |
+| `gemini-3.1-pro` | Google | via Cursor's gateway |
+| `kimi-k2.5` | Moonshot | via Cursor's gateway |
+| `grok-4.3` | xAI | via Cursor's gateway |
+
+Pass at the client level or per call:
+
+```python
+client = CursorAgentClient(model="composer-2.5")
+client.chat("...")                              # uses composer-2.5
+client.chat("...", model="claude-opus-4-7-high") # one-off override
+```
 
 ## Streaming
 
@@ -75,59 +101,79 @@ print("session_id:", client.session_id)
 
 `session_id` is set the moment the `system/init` event arrives, so breaking out of the iterator early still preserves the session for the next `chat()` call.
 
-## Multimodal / image input
+## Multimodal — image input
 
 Materialize images into the workspace and reference them by relative path in your prompt. Both `data:` URLs and local file paths work:
 
 ```python
-from cursor_api_adapter import CursorAgentClient
-
 client = CursorAgentClient(workspace="./agent_cwd")
 client.healthcheck()
 
-img_rel = client.attach_image("./design.png")   # copies into workspace, returns Path
-prompt = (
-    "Look at the file at "
-    f"./{img_rel} and tell me what's in it."
-)
-print(client.chat(prompt).text)
+img = client.attach_image("./design.png")   # copies into workspace, returns Path
+print(client.chat(f"Look at ./{img} and describe the layout.").text)
 ```
 
 Data URLs are decoded and written as `_cursor_image_<N>.<ext>` (png/jpg/webp). File paths are copied in with the same naming scheme.
 
 ## mini-swe-agent integration
 
-Drop the `CursorCLIModel` into a mini-swe-agent YAML config:
+Drop the `CursorCLIModel` into a mini-swe-agent YAML config — it's a one-line swap:
 
 ```yaml
 model:
   model_class: cursor_api_adapter.adapters.minisweagent.CursorCLIModel
   model_name: composer-2.5
   workspace: /path/to/agent/cwd
-  multimodal_regex: "(?s)<MSWEA_MULTIMODAL_CONTENT type=\"([^\"]+)\">(.*?)</MSWEA_MULTIMODAL_CONTENT>"
+  multimodal_regex: "(?s)<MSWEA_MULTIMODAL_CONTENT><CONTENT_TYPE>(.+?)</CONTENT_TYPE>(.+?)</MSWEA_MULTIMODAL_CONTENT>"
 ```
 
-The adapter bundles the first turn into a `[SYSTEM] / [USER] / [HARNESS NOTE]` block, rewrites embedded image tags into file-path references, and reshapes Cursor's response into the dict shape mini-swe-agent expects.
+The adapter bundles the first turn into a `[SYSTEM] / [USER] / [HARNESS NOTE]` block, rewrites embedded image tags into file-path references, and reshapes Cursor's response into the dict shape mini-swe-agent expects. Install with the extra: `pip install "cursor-api-adapter[minisweagent]"`.
 
-Install with the extra: `pip install "cursor-api-adapter[minisweagent]"`.
+## API surface
+
+```python
+from cursor_api_adapter import (
+    CursorAgentClient,          # the client
+    CursorAgentResponse,        # what chat()/resume() return
+    Usage,                      # token counts (no $)
+    StreamEvent,                # what stream() yields
+    CursorAgentError,           # base exception
+    CursorAgentNotFoundError,   # binary missing
+    CursorAgentAuthError,       # CURSOR_API_KEY missing
+    CursorAgentTimeout,         # subprocess timeout
+    CursorAgentInvocationError, # nonzero exit (.returncode/.stdout/.stderr)
+    CursorAgentStreamError,     # malformed stream-json
+)
+```
 
 ## Limitations
 
-- No dollar cost. Cursor's CLI doesn't return monetary cost; the adapter tracks input/output/cache-read tokens via the `Usage` dataclass instead.
-- No parallel requests on one client. A `CursorAgentClient` instance owns one session; if you need parallelism, create multiple clients.
-- `stream()` timeout bounds the post-stream wait only. A process that produces stdout slowly can exceed the configured `timeout` without raising.
+- **No dollar cost.** Cursor's CLI doesn't return monetary cost. The adapter tracks `input_tokens`, `output_tokens`, and `cache_read_tokens` via the `Usage` dataclass — compute dollars yourself with Cursor's published rates if you need them.
+- **One session per client.** A `CursorAgentClient` instance owns one session id; for parallel work, spin up multiple clients.
+- **`stream()` timeout** bounds the post-stream wait only. A process that produces stdout slowly can exceed the configured `timeout` without raising. (Fixing in `0.2.x`.)
 
-## License
+## Status
 
-MIT. See [LICENSE](./LICENSE).
+Alpha — `0.x`. API may change between minor versions. Pin to `==0.1.*` if that scares you.
 
-## Contributing
-
-Issues and PRs welcome at [github.com/bunasQ/cursor-api-adapter](https://github.com/bunasQ/cursor-api-adapter). Run the test suite with:
+## Development
 
 ```bash
+git clone https://github.com/bunasQ/cursor-api-adapter
+cd cursor-api-adapter
 pip install -e ".[dev,minisweagent]"
-pytest
+
+pytest                         # unit tests (53 passing, 1 skipped)
+CURSOR_ADAPTER_LIVE=1 pytest   # also hit the live cursor-agent
 ruff check .
 ruff format --check .
 ```
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
+Copyright © 2026 [Sergey Bunas](mailto:sergey@21st.dev).
+
+## Contributing
+
+Issues and PRs welcome at [github.com/bunasQ/cursor-api-adapter](https://github.com/bunasQ/cursor-api-adapter).
