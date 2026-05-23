@@ -4,8 +4,8 @@
 
 # cursor-api-adapter
 
-**Pythonic client for Cursor's `cursor-agent` CLI.**
-Composer 2.5, GPT-5.5, Claude Opus 4.7, Gemini 3.1, Kimi K2.5, Grok 4.3 — all callable from Python.
+**Run Cursor's Composer models inside [`mini-swe-agent`](https://github.com/SWE-agent/mini-swe-agent).**
+Drop-in model adapter for the official `cursor-agent` CLI. Also usable as a standalone Python client.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bunasQ/cursor-api-adapter/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/bunasQ/cursor-api-adapter/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3b82f6.svg?style=flat-square)](https://www.python.org/)
