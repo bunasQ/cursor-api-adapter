@@ -7,10 +7,9 @@
 **Pythonic client for Cursor's `cursor-agent` CLI.**
 Composer 2.5, GPT-5.5, Claude Opus 4.7, Gemini 3.1, Kimi K2.5, Grok 4.3 — all callable from Python.
 
-[![PyPI](https://img.shields.io/pypi/v/cursor-api-adapter.svg?style=flat-square&color=3b82f6)](https://pypi.org/project/cursor-api-adapter/)
-[![Python](https://img.shields.io/pypi/pyversions/cursor-api-adapter.svg?style=flat-square&color=3b82f6)](https://pypi.org/project/cursor-api-adapter/)
-[![License](https://img.shields.io/badge/license-MIT-3b82f6.svg?style=flat-square)](./LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/bunasQ/cursor-api-adapter/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/bunasQ/cursor-api-adapter/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3b82f6.svg?style=flat-square)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-3b82f6.svg?style=flat-square)](./LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg?style=flat-square)](#status)
 
 </div>
@@ -31,20 +30,23 @@ print(client.chat("Now translate it to French.").text)  # auto-resumes
 
 The first `chat()` mints a server-side session. Every subsequent call resumes it, so Cursor keeps the conversation context (and caches prompts) on its side — second-call input cost drops by an order of magnitude.
 
-## Why this exists
+## Motivation
 
-Cursor doesn't ship a public HTTP API. The `cursor-agent` CLI is the only programmatic surface for talking to Cursor's hosted models. This library wraps the subprocess + `stream-json` plumbing so you don't have to think about pipes, session resume, or multimodal file handoffs.
+I was building an eval harness for UI-layout replication and wanted to put Cursor's `composer-2.5` head-to-head with Claude Opus 4.7, GPT-5.5, and Gemini 3.1 on the same tasks. The harness uses [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent) for the agent loop. Mini-swe-agent has a pluggable Model interface but only ships LiteLLM-backed adapters — and Cursor doesn't expose Composer over any API LiteLLM supports.
+
+The only programmatic path to Cursor's models is `cursor-agent`, their official CLI. So I wrote this adapter: a Python wrapper that makes `cursor-agent` look like a regular language model client, plus a drop-in mini-swe-agent module so Composer fits anywhere LiteLLM would.
+
+If you also want to test Cursor's models inside an existing agent harness — or just call them from a Python script without spinning up the IDE — this is for you.
 
 ## Install
 
+Not on PyPI yet — install straight from GitHub:
+
 ```bash
-pip install cursor-api-adapter
+pip install git+https://github.com/bunasQ/cursor-api-adapter.git
 
 # with the mini-swe-agent adapter
-pip install "cursor-api-adapter[minisweagent]"
-
-# for development
-pip install "cursor-api-adapter[dev]"
+pip install "cursor-api-adapter[minisweagent] @ git+https://github.com/bunasQ/cursor-api-adapter.git"
 ```
 
 **Zero runtime dependencies** in the core library — pure standard library.
@@ -127,7 +129,7 @@ model:
   multimodal_regex: "(?s)<MSWEA_MULTIMODAL_CONTENT><CONTENT_TYPE>(.+?)</CONTENT_TYPE>(.+?)</MSWEA_MULTIMODAL_CONTENT>"
 ```
 
-The adapter bundles the first turn into a `[SYSTEM] / [USER] / [HARNESS NOTE]` block, rewrites embedded image tags into file-path references, and reshapes Cursor's response into the dict shape mini-swe-agent expects. Install with the extra: `pip install "cursor-api-adapter[minisweagent]"`.
+The adapter bundles the first turn into a `[SYSTEM] / [USER] / [HARNESS NOTE]` block, rewrites embedded image tags into file-path references, and reshapes Cursor's response into the dict shape mini-swe-agent expects. Install with the extra: `pip install "cursor-api-adapter[minisweagent] @ git+https://github.com/bunasQ/cursor-api-adapter.git"`.
 
 ## API surface
 
