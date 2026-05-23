@@ -1,0 +1,2 @@
+{"type":"result","subtype":"intermediate","usage":{"inputTokens":1,"outputTokens":2,"cacheReadTokens":3},"result":""}
+{"type":"result","subtype":"final","usage":{"inputTokens":100,"outputTokens":42,"cacheReadTokens":7},"result":""}
