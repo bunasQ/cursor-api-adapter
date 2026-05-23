@@ -32,11 +32,7 @@ The first `chat()` mints a server-side session. Every subsequent call resumes it
 
 ## Motivation
 
-I was building an eval harness for UI-layout replication and wanted to put Cursor's `composer-2.5` head-to-head with Claude Opus 4.7, GPT-5.5, and Gemini 3.1 on the same tasks. The harness uses [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent) for the agent loop. Mini-swe-agent has a pluggable Model interface but only ships LiteLLM-backed adapters — and Cursor doesn't expose Composer over any API LiteLLM supports.
-
-The only programmatic path to Cursor's models is `cursor-agent`, their official CLI. So I wrote this adapter: a Python wrapper that makes `cursor-agent` look like a regular language model client, plus a drop-in mini-swe-agent module so Composer fits anywhere LiteLLM would.
-
-If you also want to test Cursor's models inside an existing agent harness — or just call them from a Python script without spinning up the IDE — this is for you.
+I wanted to use Cursor's `composer-2.5` inside [`mini-swe-agent`](https://github.com/SWE-agent/mini-swe-agent). Mini-swe-agent only ships LiteLLM-backed model adapters; Cursor doesn't expose Composer over any API LiteLLM supports. So I wrapped their `cursor-agent` CLI as a drop-in Model — that's all this is.
 
 ## Install
 
